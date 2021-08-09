@@ -15,7 +15,7 @@ int pthread_create(pthread_t *restrict thread, const pthread_attr_t *restrict at
 
 	char * ptr = pthread_createp(thread, attr, start_routine, arg);
 
-	char* buf = "pthread_create\n"; 
+	char * buf = "pthread_create\n"; 
 	printf("%s\n", buf);
 
 	return 0;
@@ -31,9 +31,9 @@ int pthread_join(pthread_t thread, void ** retval)
 	if( (error = dlerror()) != 0x0)
 		exit(1);
 
-	char* ptr = pthread_joinp(thread, retval);
+	char * ptr = pthread_joinp(thread, retval);
 
-	char* buf = "pthread_join\n";
+	char * buf = "pthread_join\n";
 	printf("%s\n", buf);
 
 
