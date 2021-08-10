@@ -17,12 +17,11 @@ int read_bytes(int fd, void * a, int len){
 	for( i = 0 ; i < len ; ) {
 		int b ;
 		b = read(fd, s + i, len - i);
-		//if( b == 0 ){
-		//	break;
-		//}
+//		if( b == 0 ){
+//			break;
+//		}
 		i += b;
 	}
-	s[i] = 0x0;
 	return i;
 }
 
@@ -47,20 +46,17 @@ int main(){
 				perror("read bytes error\n");
 
 
-		printf("mode %d\n", r);
 
 		pthread_t thread_id;
 		if( (r = read_bytes(fd, &thread_id, sizeof(pthread_t))) != sizeof(thread_id) )
 				perror("read bytes error\n");
-		printf("thread_id %d\n", r);
 		pthread_mutex_t * mutex ;
 		if( (r = read_bytes(fd, &mutex, sizeof(pthread_mutex_t *))) != sizeof(mutex) )
 				perror("read bytes error\n");
-		printf("mutex %d\n", r);
 		flock(fd, LOCK_UN) ;
 
 		
-		printf("mode : %d | thread_id : %d | mutex %p \n", mode, (int) thread_id, mutex);
+		printf("mode : %d | thread_id : %ld | mutex %p \n", mode, thread_id, mutex);
 
 	}
 	close(fd);
