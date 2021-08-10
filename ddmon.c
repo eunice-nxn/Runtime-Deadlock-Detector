@@ -32,8 +32,8 @@ int write_bytes (int fd , void * a, int len){
 	}
 	return i;
 }
-	
-int sender (int * mode, int mode_len, pthread_t * thread_id, int thread_id_len, pthread_mutex_t * mutex, int mutex_len){
+
+int sender (void * a, int len){
 
 	if(mkfifo("channel", 0666)){
 		if(errno != EEXIST){
@@ -43,50 +43,51 @@ int sender (int * mode, int mode_len, pthread_t * thread_id, int thread_id_len, 
 	}
 
 	int fd = open("channel", O_WRONLY | O_SYNC );
-	int r = 0;
-	if( (r = write_bytes(fd, mode, mode_len)) != mode_len)
+	int ret = 0;
+	if( (ret = write_bytes(fd, a, len)) != len)
 		perror("write error");
-	if( (r = write_bytes(fd, thread_id, thread_id_len)) != thread_id_len)
-		perror("write error");
-	if( (r = write_bytes(fd, &mutex, mutex_len)) != mutex_len)
-		perror("write error");
-
 	close(fd);
 	return 0;
-	
-}
 
+}
 
 int pthread_mutex_lock(pthread_mutex_t * mutex){
 
 
 	int (*pthread_mutex_lock_p)(pthread_mutex_t * mutex);
 	int (*pthread_mutex_unlock_p)(pthread_mutex_t * mutex);
+	pthread_t (*pthread_self_p)(void);
 
-	char * error_lock,* error_unlock;
+	char * error_lock,* error_unlock, * error_self;
 	pthread_mutex_lock_p = dlsym(RTLD_NEXT, "pthread_mutex_lock");
-	if( (error_lock = dlerror()) != 0x0){
+	if( (error_lock = dlerror()) != 0x0 ){
 		exit(1);
 	}
 	pthread_mutex_unlock_p = dlsym(RTLD_NEXT, "pthread_mutex_unlock");
-	if( (error_unlock = dlerror()) != 0x0){
+	if( (error_unlock = dlerror()) != 0x0 ){
+		exit(1);
+	}
+	pthread_self_p = dlsym(RTLD_NEXT, "pthread_self");
+	if( (error_self = dlerror()) != 0x0 ){
 		exit(1);
 	}
 
 
+	int lock = 1;
+	pthread_t thread_id = pthread_self_p();
+
+	pthread_mutex_lock_p(&m);
+		sender(&lock, sizeof(int));
+		sender(&thread_id, sizeof(pthread_t));
+		sender(&mutex, sizeof(pthread_mutex_t *));
+	pthread_mutex_unlock_p(&m);
+
+	
 	int p = pthread_mutex_lock_p(mutex);
 	char * buf = "pthread_mutex_lock";
 
-	int lock = 1;
-	pthread_t thread_id = pthread_self();
+	printf("%s | mode : %d  | mutex : %p | thread_id %ld\n", buf, lock, mutex, thread_id);
 
-	pthread_mutex_lock_p(&m);
-		sender(&lock, sizeof(int), &thread_id, sizeof(pthread_t), mutex, sizeof(pthread_mutex_t *));
-	pthread_mutex_unlock_p(&m);
-
-	printf("mutex : %p\n", mutex);
-	printf("%s current thread %d\n", buf, (int) thread_id);
-	
 	return p;
 
 
@@ -97,8 +98,9 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex){
 
 	int (*pthread_mutex_lock_p)(pthread_mutex_t * mutex);
 	int (*pthread_mutex_unlock_p)(pthread_mutex_t *mutex);
+	pthread_t (*pthread_self_p)(void);
 
-	char * error_lock,* error_unlock;
+	char * error_lock,* error_unlock, * error_self;
 
 	pthread_mutex_lock_p = dlsym(RTLD_NEXT, "pthread_mutex_lock");
 	if( (error_lock = dlerror()) != 0x0 )
@@ -108,19 +110,24 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex){
 	if( (error_unlock = dlerror()) != 0x0 )
 		exit(1);
 
+	pthread_self_p = dlsym(RTLD_NEXT, "pthread_self");
+	if( (error_self = dlerror()) != 0x0 )
+		exit(1);
+
 	int p = pthread_mutex_unlock_p(mutex);
 	char * buf = "pthread_mutex_unlock";
 
 
 	int unlock = 0;
-	pthread_t thread_id = pthread_self();
+	pthread_t thread_id = pthread_self_p();
 
 	pthread_mutex_lock_p(&m);
-		sender(&unlock, sizeof(int), &thread_id, sizeof(pthread_t), mutex, sizeof(pthread_mutex_t *));
+		sender(&unlock, sizeof(int));
+		sender(&thread_id, sizeof(pthread_t));
+		sender(&mutex, sizeof(pthread_mutex_t *));	
 	pthread_mutex_unlock_p(&m);
 		
-	printf("mutex : %p\n", mutex);
-	printf("%s current thread %ld\n", buf, thread_id);
+	printf("%s | mode : %d  | mutex : %p | thread_id %ld\n", buf, unlock, mutex, thread_id);
 	return p;
 
 }
