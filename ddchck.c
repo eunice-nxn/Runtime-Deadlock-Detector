@@ -28,6 +28,34 @@ typedef struct Graph {
 	struct Edge * e_list_first; // all edges
 } Graph;
 
+Node * node_init(pthread_t thread_id, pthread_mutex_t * mutex) {
+
+	Node * new = (Node * ) malloc (sizeof(Node));
+	new->thread_id = thread_id;
+	new->mutex = mutex;
+	new->next = NULL;
+	return new;
+}
+
+Edge * edge_init(Node * u, Node * v){
+	Edge * new = (Edge *) malloc (sizeof(Edge));
+	new->u = node_init(u->thread_id, u->mutex);
+	new->u->next = u->next;
+	new->v = node_init(v->thread_id, v->mutex);
+	new->v->next = v->next;
+	new->next = NULL;
+	return new;
+}
+
+Graph * graph_init (){
+	Graph * new = (Graph *) malloc(sizeof(Graph));
+	new->n_list_size = 0;
+	new->e_list_size = 0;
+	new->n_list_first = NULL;
+	new->e_list_first = NULL;
+	return new;
+}
+
 
 int print_graph (Graph * g){
 	Node * i = g->n_list_first;
@@ -50,32 +78,44 @@ int delete_edge (Graph * g, Edge * e){
 		exit(1);
 	}
 
+	if(g->e_list_size == 1){
+		printf(" size 1 case\n");
+		g->e_list_size--;
+		free(g->e_list_first);
+		g->e_list_first = NULL;
+		return 0;
+	}
+
 	Edge * i = g->e_list_first;
+	Edge * prev_edge = NULL;
 	for( ; i != NULL ; i = i->next ){
-		if( i->next == NULL ){
-			if( pthread_equal(i->u->thread_id, e->u->thread_id) 
-					&& i->u->mutex == e->u->mutex
-					&& pthread_equal(i->v->thread_id, e->v->thread_id) 
-					&& i->v->mutex == e->v->mutex) 
-			{
-				g->e_list_size = 0;
-				g->e_list_first = NULL;
+		if( pthread_equal(i->u->thread_id, e->u->thread_id)
+				&& i->u->mutex == e->u->mutex
+				&& pthread_equal(i->u->thread_id, e->u->thread_id)
+				&& i->v->mutex == e->v->mutex)
+		{
+			g->e_list_size--;
+			if( i->next == NULL ){
+				printf("edge : i->next == NULL\n");
+				if(prev_edge != NULL){
+					printf(" prev_edge->next != NULL\n");
+					prev_edge->next = NULL;
+				}
+
 				free(i);
 				return 0;
 			}
-			break;
-		}
-
-		Edge * next_edge = i->next;
-		if( pthread_equal(next_edge->u->thread_id, e->u->thread_id)
-				&& next_edge->u->mutex == e->u->mutex
-				&& pthread_equal(next_edge->u->thread_id, e->u->thread_id)
-				&& next_edge->v->mutex == e->v->mutex)
-		{
-			g->e_list_size--;
-			i->next = next_edge->next;
-			free(next_edge);
+			printf("i->next != NULL\n");
+			Edge * next_edge = edge_init(i->next->u, i->next->v);
+			if( prev_edge == NULL ){
+				g->e_list_first = next_edge;
+			} else {
+				prev_edge->next = next_edge;
+			}
+			free(i);
 			return 0;
+		} else {
+			prev_edge = edge_init(i->u, i->v);
 		}
 	}
 	printf("Edge doesn't exist\n");
@@ -89,24 +129,42 @@ int delete_node (Graph * g, Node * n){
 		exit(1);
 	}
 
+	//if(g->n_list_size == 1){
+	//	g->n_list_size--;
+	//	free(g->n_list_first);
+	//	g->n_list_first = NULL;
+	//	return 0;
+	//}
+
 	Node * i = g->n_list_first;
+	Node * prev_node = NULL;
 	for( ; i != NULL ; i = i->next ){
-		if( i->next == NULL ){
-			if( pthread_equal(i->thread_id, n->thread_id) && i->mutex == n->mutex){
-				g->n_list_size = 0;
-				g->n_list_first = NULL;
+		if( pthread_equal(i->thread_id, n->thread_id) && i->mutex == n->mutex ){
+			g->n_list_size--;
+			if( i->next == NULL ){
+				printf("node: i->next == NULL\n");
+				if(prev_node != NULL){
+					printf("prev_node : %p\n", prev_node);
+					printf("prev_node != NULL\n");
+					prev_node->next = NULL;
+				}
 				free(i);
 				return 0;
 			}
-			break;
-		}
-		Node * next_node = i->next;
-		if( pthread_equal(next_node->thread_id, n->thread_id) && next_node->mutex == n->mutex  ){
-			g->n_list_size--;
-			i->next = next_node->next;
-			free(next_node);
+
+			Node * next_node = node_init(i->next->thread_id, i->next->mutex);
+			if( prev_node == NULL ){
+				g->n_list_first = next_node;
+			} else {
+				prev_node->next = next_node;
+			}
+			free(i);
 			return 0;
+		} else {
+			prev_node = node_init(i->thread_id, i->mutex);
+			printf("prev_node : %p\n", prev_node);
 		}
+			
 	}
 	printf("Node doesn't exist\n");
 	return -1;
@@ -138,32 +196,6 @@ int insert_node (Graph * g, Node * n){
 	return 0;	
 }
 
-
-
-Graph * graph_init (){
-	Graph * new = (Graph *) malloc(sizeof(Graph));
-	new->n_list_size = 0;
-	new->e_list_size = 0;
-	new->n_list_first = NULL;
-	new->e_list_first = NULL;
-	return new;
-}
-
-Edge * edge_init(Node * u, Node * v){
-	Edge * new = (Edge *) malloc (sizeof(Edge));
-	new->u = u;
-	new->v = v;
-	return new;
-}
-
-Node * node_init(pthread_t thread_id, pthread_mutex_t * mutex) {
-
-	Node * new = (Node * ) malloc (sizeof(Node));
-	new->thread_id = thread_id;
-	new->mutex = mutex;
-	new->next = NULL;
-	return new;
-}
 int release_lock(Graph * g, pthread_t thread_id, pthread_mutex_t * mutex){
 
 	int r = -1;
@@ -172,18 +204,15 @@ int release_lock(Graph * g, pthread_t thread_id, pthread_mutex_t * mutex){
 	for( ; j != NULL ; j = j->next ){
 		if(j->v->mutex == mutex ) {
 			cnt++;
-			printf("release_lock\n");
 			int ret = delete_edge(g, j);
 			printf("ret %d in release_lock\n", ret);
 		}
 	}
-	if( cnt == 1 ){
-		Node * i = g->n_list_first;
-		for( ; i != NULL ; i = i->next ){
-			if( i->mutex == mutex && i->thread_id == thread_id ){
-				r = delete_node(g, i);
-				return r;
-			}
+	Node * i = g->n_list_first;
+	for( ; i != NULL ; i = i->next ){
+		if( i->mutex == mutex && pthread_equal(i->thread_id, thread_id) ){
+			r = delete_node(g, i);
+			return r;
 		}
 	}
 	return r;
@@ -193,15 +222,14 @@ int acquire_lock (Graph * g, pthread_t thread_id, pthread_mutex_t * mutex){
 
 	Node * new = node_init(thread_id, mutex);
 	int ret = insert_node (g, new);
-	
 	Node * i = g->n_list_first;
 	for( ; i != NULL ; i = i->next){
 		if( pthread_equal(i->thread_id, thread_id) && i->mutex != mutex){
+			printf("i->thread_id %ld thread_id %ld | pthread_equal(i->thread_id, thread_id) %d\n", i->thread_id, thread_id, pthread_equal(i->thread_id, thread_id));
 			Edge * new_edge = edge_init(i, new);
 			int ret = insert_edge(g, new_edge);
 		}
 	}
-
 }
 
 int read_bytes(int fd, void * a, int len){
@@ -232,7 +260,6 @@ int main(){
 	}
 	
 	int fd = open("channel", O_RDONLY | O_SYNC);
-	int it_a = 0, it_r = 0;
 	while(1) {
 
 		//flock(fd, LOCK_EX) ;
@@ -258,6 +285,7 @@ int main(){
 
 		//flock(fd, LOCK_UN) ;
 		printf("mode : %d | thread_id : %ld | mutex %p \n", mode, thread_id, mutex);
+		int it_a = 0, it_r = 0;
 		if(mode == 1){
 			int ret = acquire_lock(g, thread_id, mutex);
 			it_a++;
