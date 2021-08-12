@@ -73,53 +73,42 @@ int print_graph (Graph * g){
 }
 int delete_edge (Graph * g, Edge * e){
 
-	if(g->e_list_first == NULL ){
-		perror("Edge doesn't exist");
+	if(g->e_list_first == NULL){
+		perror("Node don't exist");
 		exit(1);
-	}
-
-	if(g->e_list_size == 1){
-		printf(" size 1 case\n");
-		g->e_list_size--;
-		free(g->e_list_first);
-		g->e_list_first = NULL;
-		return 0;
-	}
+	} 
 
 	Edge * i = g->e_list_first;
 	Edge * prev_edge = NULL;
+
+	if( pthread_equal(i->u->thread_id, e->u->thread_id)
+				&& i->u->mutex == e->u->mutex
+				&& pthread_equal(i->u->thread_id, e->u->thread_id)
+				&& i->v->mutex == e->v->mutex)
+	{	
+		g->e_list_size--;
+		g->e_list_first = i->next;
+		free(i);
+		return 0;
+	}
+
 	for( ; i != NULL ; i = i->next ){
-		if( pthread_equal(i->u->thread_id, e->u->thread_id)
+		if(pthread_equal(i->u->thread_id, e->u->thread_id)
 				&& i->u->mutex == e->u->mutex
 				&& pthread_equal(i->u->thread_id, e->u->thread_id)
 				&& i->v->mutex == e->v->mutex)
 		{
-			g->e_list_size--;
-			if( i->next == NULL ){
-				printf("edge : i->next == NULL\n");
-				if(prev_edge != NULL){
-					printf(" prev_edge->next != NULL\n");
-					prev_edge->next = NULL;
-				}
-
-				free(i);
-				return 0;
-			}
-			printf("i->next != NULL\n");
-			Edge * next_edge = edge_init(i->next->u, i->next->v);
-			if( prev_edge == NULL ){
-				g->e_list_first = next_edge;
-			} else {
-				prev_edge->next = next_edge;
-			}
-			free(i);
-			return 0;
-		} else {
-			prev_edge = edge_init(i->u, i->v);
-		}
+			break;
+		} 
+		prev_edge = i;
 	}
-	printf("Edge doesn't exist\n");
-	return -1;
+	if( i == NULL ){
+		return -1;
+	}
+	g->e_list_size--;
+	prev_edge->next = i->next;
+	free(i);
+	return 0;
 }
 
 int delete_node (Graph * g, Node * n){
@@ -127,47 +116,31 @@ int delete_node (Graph * g, Node * n){
 	if(g->n_list_first == NULL){
 		perror("Node don't exist");
 		exit(1);
-	}
-
-	//if(g->n_list_size == 1){
-	//	g->n_list_size--;
-	//	free(g->n_list_first);
-	//	g->n_list_first = NULL;
-	//	return 0;
-	//}
+	} 
 
 	Node * i = g->n_list_first;
 	Node * prev_node = NULL;
+
+	if( pthread_equal(i->thread_id, n->thread_id) && i->mutex == n->mutex ){
+		g->n_list_size--;
+		g->n_list_first = i->next;
+		free(i);
+		return 0;
+	}
+
 	for( ; i != NULL ; i = i->next ){
 		if( pthread_equal(i->thread_id, n->thread_id) && i->mutex == n->mutex ){
-			g->n_list_size--;
-			if( i->next == NULL ){
-				printf("node: i->next == NULL\n");
-				if(prev_node != NULL){
-					printf("prev_node : %p\n", prev_node);
-					printf("prev_node != NULL\n");
-					prev_node->next = NULL;
-				}
-				free(i);
-				return 0;
-			}
-
-			Node * next_node = node_init(i->next->thread_id, i->next->mutex);
-			if( prev_node == NULL ){
-				g->n_list_first = next_node;
-			} else {
-				prev_node->next = next_node;
-			}
-			free(i);
-			return 0;
-		} else {
-			prev_node = node_init(i->thread_id, i->mutex);
-			printf("prev_node : %p\n", prev_node);
-		}
-			
+			break;
+		} 
+		prev_node = i;
 	}
-	printf("Node doesn't exist\n");
-	return -1;
+	if( i == NULL ){
+		return -1;
+	}
+	g->n_list_size--;
+	prev_node->next = i->next;
+	free(i);
+	return 0;
 }
 
 int insert_edge (Graph * g, Edge * e){
