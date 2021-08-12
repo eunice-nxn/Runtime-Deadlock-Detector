@@ -71,6 +71,8 @@ int print_graph (Graph * g){
 	printf("current e_list_size %d \n", g->e_list_size);
 	return 0;
 }
+
+
 int delete_edge (Graph * g, Edge * e){
 
 	if(g->e_list_first == NULL){
@@ -81,10 +83,9 @@ int delete_edge (Graph * g, Edge * e){
 	Edge * i = g->e_list_first;
 	Edge * prev_edge = NULL;
 
-	if( pthread_equal(i->u->thread_id, e->u->thread_id)
-				&& i->u->mutex == e->u->mutex
-				&& pthread_equal(i->u->thread_id, e->u->thread_id)
-				&& i->v->mutex == e->v->mutex)
+	long int i_v_thread_id = (long int) i->v->thread_id;
+	long int e_v_thread_id = (long int) e->v->thread_id;
+	if( i_v_thread_id == e_v_thread_id && i->v->mutex == e->v->mutex)
 	{	
 		g->e_list_size--;
 		g->e_list_first = i->next;
@@ -93,10 +94,7 @@ int delete_edge (Graph * g, Edge * e){
 	}
 
 	for( ; i != NULL ; i = i->next ){
-		if(pthread_equal(i->u->thread_id, e->u->thread_id)
-				&& i->u->mutex == e->u->mutex
-				&& pthread_equal(i->u->thread_id, e->u->thread_id)
-				&& i->v->mutex == e->v->mutex)
+		if( i_v_thread_id == e_v_thread_id && i->v->mutex == e->v->mutex)
 		{
 			break;
 		} 
@@ -121,7 +119,9 @@ int delete_node (Graph * g, Node * n){
 	Node * i = g->n_list_first;
 	Node * prev_node = NULL;
 
-	if( pthread_equal(i->thread_id, n->thread_id) && i->mutex == n->mutex ){
+	long int i_thread_id = (long int) i->thread_id;
+	long int n_thread_id = (long int) n->thread_id;
+	if( i_thread_id == n_thread_id && i->mutex == n->mutex ){
 		g->n_list_size--;
 		g->n_list_first = i->next;
 		free(i);
@@ -129,7 +129,7 @@ int delete_node (Graph * g, Node * n){
 	}
 
 	for( ; i != NULL ; i = i->next ){
-		if( pthread_equal(i->thread_id, n->thread_id) && i->mutex == n->mutex ){
+		if( i_thread_id == n_thread_id && i->mutex == n->mutex ){
 			break;
 		} 
 		prev_node = i;
@@ -197,7 +197,9 @@ int acquire_lock (Graph * g, pthread_t thread_id, pthread_mutex_t * mutex){
 	int ret = insert_node (g, new);
 	Node * i = g->n_list_first;
 	for( ; i != NULL ; i = i->next){
-		if( pthread_equal(i->thread_id, thread_id) && i->mutex != mutex){
+		long int i_thread_id = (long int) i->thread_id;
+		long int a_thread_id = (long int) thread_id;
+		if( i_thread_id == a_thread_id ){
 			printf("i->thread_id %ld thread_id %ld | pthread_equal(i->thread_id, thread_id) %d\n", i->thread_id, thread_id, pthread_equal(i->thread_id, thread_id));
 			Edge * new_edge = edge_init(i, new);
 			int ret = insert_edge(g, new_edge);
