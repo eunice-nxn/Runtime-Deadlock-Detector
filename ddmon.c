@@ -11,12 +11,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <execinfo.h>
 pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
-//pthread_mutex_t m2 = PTHREAD_MUTEX_INITIALIZER;
-//int id = 0;
-
-// lock or unlock, thread id , mutex 주소
-
 
 int write_bytes (int fd , void * a, int len){
 
@@ -35,19 +31,40 @@ int write_bytes (int fd , void * a, int len){
 
 int sender (void * a, int len){
 
-	if(mkfifo("channel", 0666)){
+	if(mkfifo(".ddtrace", 0666)){
 		if(errno != EEXIST){
 			perror("fail to open fifo: ");
 			exit(1);
 		}
 	}
 
-	int fd = open("channel", O_WRONLY | O_SYNC );
+	int fd = open(".ddtrace", O_WRONLY | O_SYNC );
 	int ret = 0;
 	if( (ret = write_bytes(fd, a, len)) != len)
 		perror("write error");
 	close(fd);
 	return 0;
+
+}
+
+long int get_addr_for_alert (){
+
+	long int addr = 0;
+	void * buffer[3];
+	int num_of_addr = backtrace(buffer, 3);
+	char ** str = backtrace_symbols(buffer, num_of_addr);
+	if (str == NULL) {
+		perror("backtrace_symbols");
+		exit(EXIT_FAILURE);
+	}
+	for(int i = 0 ; i < num_of_addr ; i++){
+		char * _addr = (char *) malloc (sizeof(char));
+		_addr = strchr(str[i], '+');
+		_addr = strtok( _addr + 1, ")");
+		addr = strtol(_addr, NULL, 16);
+	}
+	return addr;
+
 
 }
 
@@ -74,19 +91,22 @@ int pthread_mutex_lock(pthread_mutex_t * mutex){
 
 
 	int lock = 1;
-	pthread_t thread_id = pthread_self_p();
-
-	pthread_mutex_lock_p(&m);
+	long int thread_id = (long int) pthread_self_p();
+	long int addr = get_addr_for_alert();
+	pthread_mutex_lock_p(&m);	
 		sender(&lock, sizeof(int));
-		sender(&thread_id, sizeof(pthread_t));
+		sender(&thread_id, sizeof(long int));
 		sender(&mutex, sizeof(pthread_mutex_t *));
+		sender(&addr, sizeof(long int));
 	pthread_mutex_unlock_p(&m);
 
 	
-	int p = pthread_mutex_lock_p(mutex);
-	char * buf = "pthread_mutex_lock";
+	int p = 0;
+	p = pthread_mutex_lock_p(mutex); 
+	//char * buf = "pthread_mutex_lock";
 
-	printf("%s | mode : %d  | mutex : %p | thread_id %ld\n", buf, lock, mutex, thread_id);
+//	printf("%s | mode : %d  | mutex : %p | thread_id %ld\n", buf, lock, mutex, thread_id);
+
 
 	return p;
 
@@ -113,21 +133,22 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex){
 	pthread_self_p = dlsym(RTLD_NEXT, "pthread_self");
 	if( (error_self = dlerror()) != 0x0 )
 		exit(1);
-
-	int p = pthread_mutex_unlock_p(mutex);
-	char * buf = "pthread_mutex_unlock";
-
-
+	
 	int unlock = 0;
-	pthread_t thread_id = pthread_self_p();
+	long int thread_id = pthread_self_p();
+	long int addr = get_addr_for_alert();
 
 	pthread_mutex_lock_p(&m);
 		sender(&unlock, sizeof(int));
-		sender(&thread_id, sizeof(pthread_t));
+		sender(&thread_id, sizeof(long int));
 		sender(&mutex, sizeof(pthread_mutex_t *));	
+		sender(&addr, sizeof(long int));
 	pthread_mutex_unlock_p(&m);
 		
-	printf("%s | mode : %d  | mutex : %p | thread_id %ld\n", buf, unlock, mutex, thread_id);
+	//printf("%s | mode : %d  | mutex : %p | thread_id %ld\n", buf, unlock, mutex, thread_id);
+	int p = pthread_mutex_unlock_p(mutex);
+	char * buf = "pthread_mutex_unlock";
 	return p;
 
 }
+
