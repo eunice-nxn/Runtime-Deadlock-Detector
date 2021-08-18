@@ -227,7 +227,7 @@ int guard_lock_exist (Graph * g, long int a_thread_id, long int b_thread_id){
 	return 0;
 }
 
-int detect_deadlock(Graph * g){
+int predict_deadlock(Graph * g){
 
 	Edge * i = g->e_list_first;
 	int visit = 1;

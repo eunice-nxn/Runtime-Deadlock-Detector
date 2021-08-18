@@ -91,7 +91,7 @@ int main(int argc, char * argv[]){
 			int ret = release_lock(g, thread_id, mutex);
 		}
 
-		if(detect_deadlock(g))
+		if(predict_deadlock(g))
 		 	addr_to_line(exec, addr);
 	}
 	close(fd);

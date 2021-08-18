@@ -48,9 +48,7 @@ int release_lock(Graph * g, long int thread_id, pthread_mutex_t * mutex);
 
 int acquire_lock (Graph * g, long int thread_id, pthread_mutex_t * mutex);
 
-int detect_deadlock(Graph * g);
-
-int predeict_deadlock(Graph * g);
+int predict_deadlock(Graph * g);
 
 int addr_to_line(char * exec, long int addr);
 
